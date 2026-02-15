@@ -1,0 +1,51 @@
+{
+  "id": "example-triage-v1",
+  "name": "Example Emergency Triage",
+  "version": "1.0.0",
+  "domain": "emergency_triage",
+  "root_node_id": "n1",
+  "nodes": {
+    "n1": {
+      "id": "n1",
+      "type": "condition",
+      "label": "Does the patient have chest pain?",
+      "condition": {
+        "variable": "chest_pain",
+        "operator": "==",
+        "threshold": true
+      },
+      "children": ["n2", "n3"],
+      "metadata": { "confidence": 0.95 }
+    },
+    "n2": {
+      "id": "n2",
+      "type": "action",
+      "label": "Chest pain present - urgent evaluation",
+      "action": {
+        "recommendation": "Proceed to ED or urgent cardiac evaluation.",
+        "urgency_level": "urgent"
+      },
+      "children": [],
+      "metadata": { "confidence": 0.9 }
+    },
+    "n3": {
+      "id": "n3",
+      "type": "action",
+      "label": "No chest pain",
+      "action": {
+        "recommendation": "Continue with routine triage pathway.",
+        "urgency_level": "routine"
+      },
+      "children": [],
+      "metadata": { "confidence": 0.95 }
+    }
+  },
+  "variables": [
+    {
+      "name": "chest_pain",
+      "type": "boolean",
+      "source": "patient_history",
+      "description": "Patient reports chest pain"
+    }
+  ]
+}

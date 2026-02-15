@@ -1,0 +1,9 @@
+# CAIRE backend dependencies (alternative to: pip install -e .)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+sqlalchemy>=2.0.0
+PyPDF2>=3.0.0
+python-multipart>=0.0.6
+
+# Dev (for tests): pytest pytest-asyncio httpx

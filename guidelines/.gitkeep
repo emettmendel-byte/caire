@@ -1,0 +1,2 @@
+# Place sample guideline PDFs or documents here.
+# The backend will ingest files from this directory or via POST /api/guidelines/upload.

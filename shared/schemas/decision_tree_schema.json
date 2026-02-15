@@ -1,0 +1,485 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://caire.example/schemas/decision_tree.json",
+  "title": "CAIRE Decision Tree Schema",
+  "description": "DMN-inspired decision tree model for clinical triage (CAIRE)",
+  "version": "1.0.0",
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "description": "Unique tree identifier (UUID or string)",
+      "title": "Id"
+    },
+    "name": {
+      "description": "Human-readable name (e.g. 'Emergency Department Chest Pain Triage')",
+      "title": "Name",
+      "type": "string"
+    },
+    "version": {
+      "description": "Semantic version (e.g. '1.0.0')",
+      "title": "Version",
+      "type": "string"
+    },
+    "domain": {
+      "description": "Clinical domain (e.g. 'emergency_triage', 'cardiology')",
+      "title": "Domain",
+      "type": "string"
+    },
+    "root_node_id": {
+      "description": "ID of the root decision node",
+      "title": "Root Node Id",
+      "type": "string"
+    },
+    "nodes": {
+      "additionalProperties": {
+        "$ref": "#/$defs/DecisionNode"
+      },
+      "description": "Map of node_id -> DecisionNode",
+      "title": "Nodes",
+      "type": "object"
+    },
+    "variables": {
+      "description": "Clinical variables used in the tree",
+      "items": {
+        "$ref": "#/$defs/DecisionVariable"
+      },
+      "title": "Variables",
+      "type": "array"
+    },
+    "metadata": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TreeMetadata"
+        },
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Guideline source, created date, authors, approval status",
+      "title": "Metadata"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "version",
+    "domain",
+    "root_node_id"
+  ],
+  "type": "object",
+  "$defs": {
+    "ActionSpec": {
+      "additionalProperties": false,
+      "description": "Specification for an action node: recommendation and urgency.",
+      "properties": {
+        "recommendation": {
+          "description": "Human-readable recommendation or disposition text",
+          "title": "Recommendation",
+          "type": "string"
+        },
+        "urgency_level": {
+          "anyOf": [
+            {
+              "enum": [
+                "emergency",
+                "urgent",
+                "routine",
+                "deferred",
+                "other"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Urgency of the recommended action",
+          "title": "Urgency Level"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Structured code or protocol reference",
+          "title": "Code"
+        }
+      },
+      "required": [
+        "recommendation"
+      ],
+      "title": "ActionSpec",
+      "type": "object"
+    },
+    "ConditionSpec": {
+      "additionalProperties": false,
+      "description": "Specification for a condition node: variable, operator, threshold/value.",
+      "properties": {
+        "variable": {
+          "description": "Name of the variable (must exist in tree variables)",
+          "title": "Variable",
+          "type": "string"
+        },
+        "operator": {
+          "description": "Comparison operator: '>', '<', '>=', '<=', '==', '!=', 'in', 'not_in', 'present', 'absent'",
+          "title": "Operator",
+          "type": "string"
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Threshold or value for comparison (numeric, category code, or boolean)",
+          "title": "Threshold"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unit of measure when relevant (e.g. 'mmHg')",
+          "title": "Unit"
+        }
+      },
+      "required": [
+        "variable",
+        "operator"
+      ],
+      "title": "ConditionSpec",
+      "type": "object"
+    },
+    "DecisionNode": {
+      "additionalProperties": true,
+      "description": "A single decision point in the tree (DMN-style).\n\n- condition: branching logic (variable, operator, threshold)\n- action: recommendation and urgency (for leaf/action nodes)\n- score: placeholder for future score/aggregation nodes\n- children: IDs of child nodes (next steps)",
+      "properties": {
+        "id": {
+          "description": "Unique identifier for this node",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/NodeType",
+          "description": "Node type: condition, action, or score"
+        },
+        "label": {
+          "description": "Human-readable description of the decision point",
+          "title": "Label",
+          "type": "string"
+        },
+        "condition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For condition nodes: variable, operator, threshold"
+        },
+        "action": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ActionSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For action nodes: recommendation text and urgency level"
+        },
+        "score_expression": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For score nodes: expression or formula (e.g. 'HEART_score')",
+          "title": "Score Expression"
+        },
+        "children": {
+          "description": "List of child node IDs (ordered: first match typically first branch)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Children",
+          "type": "array"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NodeMetadata"
+            },
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Source guideline section, evidence grade, date",
+          "title": "Metadata"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "label"
+      ],
+      "title": "DecisionNode",
+      "type": "object"
+    },
+    "DecisionVariable": {
+      "additionalProperties": true,
+      "description": "Clinical variable used in the decision tree (inputs and intermediate values).",
+      "properties": {
+        "name": {
+          "description": "Variable name (e.g. 'age', 'chest_pain_severity')",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/VariableType",
+          "description": "Numeric, boolean, or categorical"
+        },
+        "units": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unit of measure (e.g. 'years', 'mmHg')",
+          "title": "Units"
+        },
+        "terminology_mapping": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Codes from terminologies (e.g. SNOMED CT, LOINC): {'SNOMED': ['...'], 'LOINC': '...'}",
+          "title": "Terminology Mapping"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Where the data comes from: e.g. 'patient_history', 'vital_signs', 'lab'",
+          "title": "Source"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable description",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "title": "DecisionVariable",
+      "type": "object"
+    },
+    "NodeMetadata": {
+      "additionalProperties": true,
+      "description": "Metadata attached to a decision node (source, evidence, dates).",
+      "properties": {
+        "source_guideline_section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Section or page reference in source guideline",
+          "title": "Source Guideline Section"
+        },
+        "evidence_grade": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Evidence grade (e.g. 1A, 2B) if applicable",
+          "title": "Evidence Grade"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Date of last review or extraction",
+          "title": "Date"
+        }
+      },
+      "title": "NodeMetadata",
+      "type": "object"
+    },
+    "NodeType": {
+      "description": "Type of decision point in the tree.",
+      "enum": [
+        "condition",
+        "action",
+        "score"
+      ],
+      "title": "NodeType",
+      "type": "string"
+    },
+    "TreeMetadata": {
+      "additionalProperties": true,
+      "description": "Metadata for the full decision tree.",
+      "properties": {
+        "guideline_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Source guideline or document",
+          "title": "Guideline Source"
+        },
+        "created_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When the tree was created",
+          "title": "Created Date"
+        },
+        "authors": {
+          "description": "Authors or contributors",
+          "items": {
+            "type": "string"
+          },
+          "title": "Authors",
+          "type": "array"
+        },
+        "approval_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "e.g. 'draft', 'approved', 'retired'",
+          "title": "Approval Status"
+        }
+      },
+      "title": "TreeMetadata",
+      "type": "object"
+    },
+    "VariableType": {
+      "description": "Type of a clinical variable.",
+      "enum": [
+        "numeric",
+        "boolean",
+        "categorical"
+      ],
+      "title": "VariableType",
+      "type": "string"
+    }
+  }
+}
