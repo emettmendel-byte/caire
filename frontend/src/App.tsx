@@ -1,26 +1,14 @@
 import { useState, useCallback } from 'react'
 import { TreeList } from './components/TreeList'
-import { TreeView } from './components/TreeView'
-import type { DecisionTree } from './types/decisionTree'
-import { treesApi } from './api/client'
+import { TreeEditor } from './components/TreeEditor'
+import { TreeViewerErrorBoundary } from './components/TreeViewer/TreeViewerErrorBoundary'
 import './App.css'
 
 function App() {
-  const [selectedTree, setSelectedTree] = useState<DecisionTree | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null)
 
-  const loadTree = useCallback((id: string) => {
-    setError(null)
-    treesApi
-      .get(id)
-      .then(setSelectedTree)
-      .catch((e) => setError(e.message))
-  }, [])
-
-  const clearSelection = useCallback(() => {
-    setSelectedTree(null)
-    setError(null)
-  }, [])
+  const handleSelectTree = useCallback((id: string) => setSelectedTreeId(id), [])
+  const handleBack = useCallback(() => setSelectedTreeId(null), [])
 
   return (
     <div className="app">
@@ -31,19 +19,15 @@ function App() {
       <main className="app-main">
         <aside className="sidebar">
           <h2>Trees</h2>
-          <TreeList onSelect={loadTree} />
+          <TreeList onSelect={handleSelectTree} />
         </aside>
         <section className="content">
-          {error && <p className="error">{error}</p>}
-          {selectedTree ? (
-            <>
-              <button type="button" className="back" onClick={clearSelection}>
-                ← Back to list
-              </button>
-              <TreeView tree={selectedTree} />
-            </>
+          {selectedTreeId ? (
+            <TreeViewerErrorBoundary>
+              <TreeEditor treeId={selectedTreeId} onBack={handleBack} />
+            </TreeViewerErrorBoundary>
           ) : (
-            <p className="hint">Select a decision tree from the list or add one via the API (e.g. POST /api/trees or /api/trees/generate).</p>
+            <p className="hint">Select a decision tree from the list or add one via the API (e.g. POST /api/compile or upload a guideline).</p>
           )}
         </section>
       </main>

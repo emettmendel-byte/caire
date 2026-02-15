@@ -379,20 +379,38 @@ def _load_prompt(name: str) -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
+def _load_domain_prompt(domain: str, name: str) -> str:
+    """Load prompt from domain subfolder if present (e.g. emergency_triage/system.txt)."""
+    domain_dir = PROMPTS_DIR / domain.replace("-", "_")
+    if not domain_dir.is_dir():
+        return ""
+    path = domain_dir / name
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8").strip()
+
+
 async def parse_guideline_to_tree(
     guideline_text: str,
     domain: str,
     router: Optional[LLMRouter] = None,
     use_student_fallback: bool = True,
-) -> DecisionTree:
+    return_raw: bool = False,
+):
     """
     Parse guideline text into an initial DecisionTree using the teacher model.
     Returns tree with confidence scores in each node's metadata.
-    Falls back to student model if teacher fails when use_student_fallback=True.
+    If return_raw=True, returns (tree, raw_llm_content) for traceability.
     """
     router = router or LLMRouter()
     system_prompt = _load_prompt("guideline_parser_system.txt")
     example = _load_prompt("tree_structure.json")
+    domain_system = _load_domain_prompt(domain, "system.txt")
+    if domain_system:
+        system_prompt = domain_system + "\n\n" + system_prompt
+    domain_example = _load_domain_prompt(domain, "few_shot_example.json")
+    if domain_example:
+        example = domain_example or example
     if example:
         system_prompt += "\n\n## Example output structure\n" + example
 
@@ -444,6 +462,8 @@ async def parse_guideline_to_tree(
     except Exception as e:
         raise ValueError(f"LLM output did not validate as DecisionTree: {e}") from e
 
+    if return_raw:
+        return tree, content
     return tree
 
 

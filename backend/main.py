@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.database import Base, engine
-from backend.models_db import DecisionTreeModel, GuidelineDocumentModel, LLMCallLog
+from backend.models_db import DecisionTreeModel, GuidelineDocumentModel, LLMCallLog, CompileJobModel, TestCaseModel, TestResultModel
 from backend.routes import api_router
 
 
@@ -24,8 +24,11 @@ def ensure_dirs():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Create DB tables and dirs on startup."""
+    from backend.database import migrate_guideline_documents_if_needed, migrate_decision_trees_if_needed
     ensure_dirs()
     Base.metadata.create_all(bind=engine)
+    migrate_guideline_documents_if_needed()
+    migrate_decision_trees_if_needed()
     yield
     # Shutdown: nothing to do for SQLite
 

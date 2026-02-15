@@ -1,0 +1,15 @@
+CAIRE Emergency Triage Demo — Evaluation Report
+==================================================
+Tree: /Users/emett/Desktop/caire/models/emergency-triage-v1.json
+Fixtures: /Users/emett/Desktop/caire/tests/fixtures/emergency_triage_cases.json
+Total cases: 12
+Passed: 10
+Failed: 2
+
+Failed cases:
+  - esi2-low-bp: path/outcome mismatch
+    Actual path: n1 -> n2 -> n3 -> n_esi4
+    Actual outcome: Routine workup.
+  - esi3-moderate-pain: path/outcome mismatch
+    Actual path: n1 -> n2 -> n3 -> n_esi4
+    Actual outcome: Routine workup.

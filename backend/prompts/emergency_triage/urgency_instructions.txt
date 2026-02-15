@@ -1,0 +1,20 @@
+# Urgency level assignment for ED triage
+
+Map triage levels to CAIRE action.urgency_level:
+
+- **Level 1 (Resuscitation)** → urgency_level: "emergency"
+  Use for: cardiac arrest, unresponsive, severe respiratory failure, major hemorrhage, anaphylaxis.
+
+- **Level 2 (Emergent)** → urgency_level: "urgent"
+  Use for: high-risk situation, severe pain (8–10/10), critical vitals (e.g. SpO2 <92%, SBP <90), confused/lethargic.
+
+- **Level 3 (Urgent)** → urgency_level: "urgent" or "routine"
+  Use for: multiple resources needed, one abnormal vital, moderate pain (4–7/10).
+
+- **Level 4 (Less urgent)** → urgency_level: "routine"
+  Use for: one resource likely, stable.
+
+- **Level 5 (Non-urgent)** → urgency_level: "routine" or "deferred"
+  Use for: minimal resources, low acuity.
+
+When in doubt between two levels, assign the higher acuity (more urgent).

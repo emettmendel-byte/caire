@@ -1,0 +1,63 @@
+{
+  "id": "emergency-triage-v1",
+  "name": "Emergency Department General Triage",
+  "version": "1.0.0",
+  "domain": "emergency_triage",
+  "root_node_id": "n1",
+  "nodes": {
+    "n1": {
+      "id": "n1",
+      "type": "condition",
+      "label": "Life-threatening?",
+      "condition": { "variable": "unresponsive", "operator": "==", "threshold": true },
+      "children": ["n_esi1", "n2"]
+    },
+    "n_esi1": {
+      "id": "n_esi1",
+      "type": "action",
+      "label": "ESI Level 1 – Resuscitation",
+      "action": { "recommendation": "Immediate life-saving intervention.", "urgency_level": "emergency" },
+      "children": []
+    },
+    "n2": {
+      "id": "n2",
+      "type": "condition",
+      "label": "SpO2 on room air",
+      "condition": { "variable": "spo2_percent", "operator": "<", "threshold": 92 },
+      "children": ["n_esi2", "n3"]
+    },
+    "n_esi2": {
+      "id": "n_esi2",
+      "type": "action",
+      "label": "ESI Level 2 – Hypoxia",
+      "action": { "recommendation": "Supplemental O2 and urgent assessment.", "urgency_level": "urgent" },
+      "children": []
+    },
+    "n3": {
+      "id": "n3",
+      "type": "condition",
+      "label": "Chief complaint chest pain with concerning features?",
+      "condition": { "variable": "chest_pain_concerning", "operator": "==", "threshold": true },
+      "children": ["n_esi2_chest", "n_esi4"]
+    },
+    "n_esi2_chest": {
+      "id": "n_esi2_chest",
+      "type": "action",
+      "label": "ESI Level 2 – Chest pain",
+      "action": { "recommendation": "Urgent cardiac evaluation.", "urgency_level": "urgent" },
+      "children": []
+    },
+    "n_esi4": {
+      "id": "n_esi4",
+      "type": "action",
+      "label": "ESI Level 4 – Less urgent",
+      "action": { "recommendation": "Routine workup.", "urgency_level": "routine" },
+      "children": []
+    }
+  },
+  "variables": [
+    { "name": "unresponsive", "type": "boolean", "source": "assessment" },
+    { "name": "spo2_percent", "type": "numeric", "units": "%", "source": "vital_signs" },
+    { "name": "chest_pain_concerning", "type": "boolean", "source": "patient_history" }
+  ]
+}

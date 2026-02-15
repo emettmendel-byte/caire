@@ -1,0 +1,141 @@
+[
+  {
+    "id": "esi1-cardiac-arrest",
+    "tree_id": "emergency-triage-v1",
+    "input_values": {
+      "unresponsive": true,
+      "has_pulse": false,
+      "chief_complaint_category": "chest_pain"
+    },
+    "expected_path": [],
+    "expected_outcome": "life-saving"
+  },
+  {
+    "id": "esi1-unresponsive",
+    "tree_id": "emergency-triage-v1",
+    "input_values": {
+      "unresponsive": true,
+      "chief_complaint_category": "other"
+    },
+    "expected_path": [],
+    "expected_outcome": "Intervention"
+  },
+  {
+    "id": "esi2-chest-pain-concerning",
+    "tree_id": "emergency-triage-v1",
+    "input_values": {
+      "chief_complaint_category": "chest_pain",
+      "chest_pain_concerning": true,
+      "spo2_percent": 96,
+      "systolic_bp": 120
+    },
+    "expected_path": [],
+    "expected_outcome": "urgent"
+  },
+  {
+    "id": "esi2-hypoxia",
+    "tree_id": "emergency-triage-v1",
+    "input_values": {
+      "chief_complaint_category": "respiratory_distress",
+      "spo2_percent": 88,
+      "respiratory_rate": 28
+    },
+    "expected_path": [],
+    "expected_outcome": "urgent"
+  },
+  {
+    "id": "esi2-low-bp",
+    "tree_id": "emergency-triage-v1",
+    "input_values": {
+      "chief_complaint_category": "abdominal_pain",
+      "systolic_bp": 85,
+      "heart_rate": 110,
+      "spo2_percent": 95
+    },
+    "expected_path": [],
+    "expected_outcome": "urgent"
+  },
+  {
+    "id": "esi3-chest-pain-stable",
+    "tree_id": "emergency-triage-v1",
+    "input_values": {
+      "chief_complaint_category": "chest_pain",
+      "chest_pain_concerning": false,
+      "spo2_percent": 98,
+      "systolic_bp": 130,
+      "pain_level": 4
+    },
+    "expected_path": [],
+    "expected_outcome": "routine"
+  },
+  {
+    "id": "esi3-moderate-pain",
+    "tree_id": "emergency-triage-v1",
+    "input_values": {
+      "chief_complaint_category": "abdominal_pain",
+      "pain_level": 6,
+      "systolic_bp": 118,
+      "spo2_percent": 97
+    },
+    "expected_path": [],
+    "expected_outcome": "urgent"
+  },
+  {
+    "id": "esi4-minor-injury",
+    "tree_id": "emergency-triage-v1",
+    "input_values": {
+      "chief_complaint_category": "trauma",
+      "pain_level": 2,
+      "systolic_bp": 125,
+      "spo2_percent": 99
+    },
+    "expected_path": [],
+    "expected_outcome": "routine"
+  },
+  {
+    "id": "esi5-well-appearing",
+    "tree_id": "emergency-triage-v1",
+    "input_values": {
+      "chief_complaint_category": "other",
+      "pain_level": 0,
+      "systolic_bp": 122,
+      "spo2_percent": 98
+    },
+    "expected_path": [],
+    "expected_outcome": "routine"
+  },
+  {
+    "id": "edge-missing-vitals",
+    "tree_id": "emergency-triage-v1",
+    "input_values": {
+      "chief_complaint_category": "chest_pain",
+      "chest_pain_concerning": true
+    },
+    "expected_path": [],
+    "expected_outcome": null
+  },
+  {
+    "id": "edge-conflicting-stable-vitals-severe-complaint",
+    "tree_id": "emergency-triage-v1",
+    "input_values": {
+      "chief_complaint_category": "chest_pain",
+      "chest_pain_concerning": true,
+      "systolic_bp": 140,
+      "spo2_percent": 99,
+      "pain_level": 9
+    },
+    "expected_path": [],
+    "expected_outcome": "urgent"
+  },
+  {
+    "id": "respiratory-stable",
+    "tree_id": "emergency-triage-v1",
+    "input_values": {
+      "chief_complaint_category": "respiratory_distress",
+      "spo2_percent": 96,
+      "respiratory_rate": 18
+    },
+    "expected_path": [],
+    "expected_outcome": null
+  }
+]

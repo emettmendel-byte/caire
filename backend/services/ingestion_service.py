@@ -127,7 +127,7 @@ def detect_flowcharts_or_tables(text: str) -> list[str]:
     Detect possible flowcharts or decision tables in text (for manual review).
     Returns list of short descriptions (e.g. 'Possible flowchart at line 42').
     TODO: Future enhancement - integrate diagram/flowchart extraction (e.g. from PDF
-    embedded images or structured tables). For now we do simple heuristics.
+    embedded images or structured tables). For now we do simple heuristics only.
     """
     findings = []
     lines = text.splitlines()

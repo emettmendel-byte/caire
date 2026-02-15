@@ -13,16 +13,17 @@ async function handleResponse<T>(res: Response): Promise<T> {
     throw new Error(text || `HTTP ${res.status}`)
   }
   if (res.status === 204) return undefined as T
-  return res.json() as Promise<T>
+  const json = await res.json()
+  return json as T
 }
 
 export const treesApi = {
   list(): Promise<TreeSummary[]> {
-    return fetch(`${API}/trees/`).then(handleResponse)
+    return fetch(`${API}/trees/`).then((res) => handleResponse<TreeSummary[]>(res))
   },
 
   get(id: string): Promise<DecisionTree> {
-    return fetch(`${API}/trees/${encodeURIComponent(id)}`).then(handleResponse)
+    return fetch(`${API}/trees/${encodeURIComponent(id)}`).then((res) => handleResponse<DecisionTree>(res))
   },
 
   create(tree: DecisionTree): Promise<DecisionTree> {
@@ -30,7 +31,7 @@ export const treesApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(tree),
-    }).then(handleResponse)
+    }).then((res) => handleResponse<DecisionTree>(res))
   },
 
   update(id: string, tree: DecisionTree): Promise<DecisionTree> {
@@ -38,11 +39,11 @@ export const treesApi = {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(tree),
-    }).then(handleResponse)
+    }).then((res) => handleResponse<DecisionTree>(res))
   },
 
   delete(id: string): Promise<void> {
-    return fetch(`${API}/trees/${encodeURIComponent(id)}`, { method: 'DELETE' }).then(handleResponse)
+    return fetch(`${API}/trees/${encodeURIComponent(id)}`, { method: 'DELETE' }).then((res) => handleResponse<void>(res))
   },
 
   generateFromFile(file: File, options?: { name?: string; tree_id?: string }): Promise<DecisionTree> {
@@ -50,6 +51,6 @@ export const treesApi = {
     form.append('file', file)
     if (options?.name) form.append('name', options.name)
     if (options?.tree_id) form.append('tree_id', options.tree_id)
-    return fetch(`${API}/trees/generate`, { method: 'POST', body: form }).then(handleResponse)
+    return fetch(`${API}/trees/generate`, { method: 'POST', body: form }).then((res) => handleResponse<DecisionTree>(res))
   },
 }

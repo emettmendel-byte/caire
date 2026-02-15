@@ -90,6 +90,69 @@ See `docker-compose.yml` for service definitions.
    ```
 3. Open the frontend and select the tree from the list.
 
+## Complete example: Emergency department triage
+
+An end-to-end example demonstrates ingestion → compilation → testing for a simplified ED triage guideline (ESI-like levels 1–5).
+
+### 1. What’s included
+
+- **Guideline**: `guidelines/emergency-triage-simplified.md` — chief complaints, vital signs, red flags, triage levels.
+- **Prompts**: `backend/prompts/emergency_triage/` — system prompt, few-shot example, urgency instructions.
+- **Ingestion script**: `scripts/ingest_example.py` — loads the guideline, runs ingestion + LLM compiler, writes the tree to `models/emergency-triage-v1.json`.
+- **Test fixtures**: `tests/fixtures/emergency_triage_cases.json` — 12 cases (ESI 1–5, hypoxia, low BP, chest pain, edge cases, missing data).
+- **Demo script**: `scripts/demo.py` — loads the compiled tree, runs all fixture cases, prints a results table and writes `models/emergency-triage-demo-report.txt`.
+
+### 2. How to run the demo
+
+From the project root with the venv activated:
+
+```bash
+# Ingest guideline and compile to tree (requires LLM API keys)
+python scripts/ingest_example.py
+
+# Run fixture test cases and print report
+python scripts/demo.py
+```
+
+**Requirements**: `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` set for ingestion (compiler uses teacher model). Database is created automatically if missing.
+
+### 3. Expected output
+
+**ingest_example.py**
+
+- Step 1: Ingested guideline ID and character count.
+- Step 2: Tree name, root node, node count.
+- Step 3: Saved path `models/emergency-triage-v1.json`.
+
+**demo.py**
+
+- A table of test case ID, Pass (Yes/No), Actual outcome, Time (ms).
+- Summary line: `X/Y passed`.
+- Report file: `models/emergency-triage-demo-report.txt` with failed cases and actual path/outcome.
+
+Example:
+
+```
+Tree: Emergency Department General Triage (id=emergency-triage-v1)
+Running 12 test cases...
+
+Case ID                 Pass   Actual outcome                     Time (ms)
+-----------------------------------------------------------------------------
+esi1-cardiac-arrest     No     ESI Level 2 – Emergent             2.3
+...
+Summary: 8/12 passed
+Report written to models/emergency-triage-demo-report.txt
+```
+
+Pass counts depend on how well the LLM-generated tree matches the expected outcomes in the fixtures; variable names and logic may need alignment (see `docs/lessons-learned.md`).
+
+### 4. Adapting for other triage domains
+
+- **New guideline**: Add a markdown (or PDF) under `guidelines/`, then in `scripts/ingest_example.py` change `GUIDELINE_PATH`, `GUIDELINE_ID`, and the `domain` passed to `process_guideline` and `CompilerOptions`.
+- **Domain-specific prompts**: Create `backend/prompts/<domain>/` with `system.txt` and optional `few_shot_example.json`. The compiler loads these when `domain` matches (e.g. `emergency_triage`).
+- **New fixtures**: Add or edit JSON in `tests/fixtures/` with `id`, `tree_id`, `input_values`, `expected_path`, `expected_outcome`. Keep `tree_id` and variable names consistent with the compiled tree.
+- **Run tests via API**: After ingestion, the tree is also stored in the DB. Use the frontend “Tests” panel or `POST /api/trees/{tree_id}/test` to run tests.
+
 ## Tests
 
 ```bash
@@ -101,22 +164,26 @@ pytest
 
 ```
 caire/
-├── backend/           # FastAPI app
-│   ├── main.py        # App entry, CORS, lifespan
-│   ├── database.py    # SQLite + Session
-│   ├── models_db.py   # SQLAlchemy models
-│   ├── compiler.py    # Guideline → tree (stub)
-│   └── routes/        # /api/trees, /api/guidelines
-├── frontend/          # React + Vite
+├── backend/              # FastAPI app
+│   ├── main.py           # App entry, CORS, lifespan
+│   ├── database.py       # SQLite + Session
+│   ├── models_db.py      # SQLAlchemy models
+│   ├── compiler.py       # Guideline → tree (stub)
+│   ├── prompts/          # LLM prompts (+ emergency_triage/)
+│   ├── services/         # Compiler, ingestion, LLM, test execution
+│   └── routes/           # /api/trees, /api/guidelines, /api/test-results
+├── frontend/             # React + Vite
 │   └── src/
-│       ├── api/       # API client
-│       ├── components/# TreeList, TreeView
-│       └── types/     # Decision tree TS types
+│       ├── api/          # API client
+│       ├── components/   # TreeList, TreeEditor, Testing
+│       └── types/        # Decision tree TS types
 ├── shared/
-│   └── schemas/       # Pydantic decision tree schema
-├── tests/             # Pytest (unit + API)
-├── guidelines/        # Sample/uploaded guideline files
-├── models/            # Versioned tree JSON files
+│   └── schemas/          # Pydantic decision tree schema
+├── scripts/              # ingest_example.py, demo.py
+├── tests/                # Pytest + fixtures/
+├── guidelines/           # Sample/uploaded guideline files
+├── models/               # Versioned tree JSON + demo report
+├── docs/                 # lessons-learned.md
 ├── pyproject.toml
 ├── docker-compose.yml
 └── README.md

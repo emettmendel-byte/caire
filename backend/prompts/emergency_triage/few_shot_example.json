@@ -1,0 +1,70 @@
+{
+  "id": "ed-triage-example-v1",
+  "name": "ED Triage Example",
+  "version": "1.0.0",
+  "domain": "emergency_triage",
+  "root_node_id": "chief_complaint",
+  "nodes": {
+    "chief_complaint": {
+      "id": "chief_complaint",
+      "type": "condition",
+      "label": "Chief complaint category",
+      "condition": { "variable": "chief_complaint_category", "operator": "==", "threshold": "chest_pain" },
+      "children": ["chest_pain_path", "other_complaint"],
+      "metadata": { "confidence": 0.9 }
+    },
+    "chest_pain_path": {
+      "id": "chest_pain_path",
+      "type": "condition",
+      "label": "Concerning features (diaphoresis, radiation, SOB)?",
+      "condition": { "variable": "chest_pain_concerning", "operator": "==", "threshold": true },
+      "children": ["out_esi2", "out_esi3"],
+      "metadata": { "confidence": 0.85 }
+    },
+    "out_esi2": {
+      "id": "out_esi2",
+      "type": "action",
+      "label": "ESI Level 2 – Emergent",
+      "action": { "recommendation": "Urgent evaluation; consider cardiac workup.", "urgency_level": "urgent" },
+      "children": [],
+      "metadata": { "confidence": 0.9 }
+    },
+    "out_esi3": {
+      "id": "out_esi3",
+      "type": "action",
+      "label": "ESI Level 3 – Urgent",
+      "action": { "recommendation": "Stable chest pain pathway; labs and ECG as indicated.", "urgency_level": "routine" },
+      "children": [],
+      "metadata": { "confidence": 0.85 }
+    },
+    "other_complaint": {
+      "id": "other_complaint",
+      "type": "condition",
+      "label": "SpO2 on room air",
+      "condition": { "variable": "spo2_percent", "operator": "<", "threshold": 92 },
+      "children": ["out_esi2_resp", "out_esi4"],
+      "metadata": { "confidence": 0.9 }
+    },
+    "out_esi2_resp": {
+      "id": "out_esi2_resp",
+      "type": "action",
+      "label": "ESI Level 2 – Hypoxia",
+      "action": { "recommendation": "Supplemental O2 and urgent respiratory assessment.", "urgency_level": "urgent" },
+      "children": [],
+      "metadata": { "confidence": 0.95 }
+    },
+    "out_esi4": {
+      "id": "out_esi4",
+      "type": "action",
+      "label": "ESI Level 4 – Less urgent",
+      "action": { "recommendation": "Routine workup; reassess if condition changes.", "urgency_level": "routine" },
+      "children": [],
+      "metadata": { "confidence": 0.85 }
+    }
+  },
+  "variables": [
+    { "name": "chief_complaint_category", "type": "categorical", "source": "patient_history", "description": "chest_pain, abdominal_pain, trauma, respiratory, other" },
+    { "name": "chest_pain_concerning", "type": "boolean", "source": "patient_history" },
+    { "name": "spo2_percent", "type": "numeric", "units": "%", "source": "vital_signs" }
+  ]
+}

@@ -7,7 +7,7 @@ Uses SQLAlchemy with a single file (caire.db) for simplicity.
 import os
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # Default: store DB in project root for easy backup/portability
@@ -31,3 +31,31 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def migrate_guideline_documents_if_needed():
+    """Add new columns to guideline_documents if they exist in the model but not in the DB."""
+    with engine.connect() as conn:
+        r = conn.execute(text("PRAGMA table_info(guideline_documents)")).fetchall()
+        existing = {row[1] for row in r}
+    adds = [("domain", "TEXT"), ("sections_json", "TEXT"), ("processed_at", "DATETIME")]
+    for col, ctype in adds:
+        if col not in existing:
+            with engine.connect() as conn:
+                conn.execute(text(f"ALTER TABLE guideline_documents ADD COLUMN {col} {ctype}"))
+                conn.commit()
+
+
+def migrate_decision_trees_if_needed():
+    """Add status and domain columns to decision_trees if missing."""
+    with engine.connect() as conn:
+        r = conn.execute(text("PRAGMA table_info(decision_trees)")).fetchall()
+        existing = {row[1] for row in r}
+    if "status" not in existing:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE decision_trees ADD COLUMN status TEXT DEFAULT 'draft'"))
+            conn.commit()
+    if "domain" not in existing:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE decision_trees ADD COLUMN domain TEXT"))
+            conn.commit()
