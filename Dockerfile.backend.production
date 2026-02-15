@@ -1,0 +1,39 @@
+# CAIRE backend - production multi-stage build
+# Build: docker build -f Dockerfile.backend.production -t caire-backend:latest .
+
+# Stage 1: builder
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -e . && \
+    pip install --no-cache-dir "uvicorn[standard]>=0.27.0"
+
+# Stage 2: runtime
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+
+# Non-root user
+RUN adduser --disabled-password --gecos "" appuser
+
+# Copy installed packages from builder (minimal: only what's needed)
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin/uvicorn /usr/local/bin/uvicorn
+
+COPY backend/ ./backend/
+COPY shared/ ./shared/
+
+# Directories for data and logs (mount as volumes in production)
+ENV CAIRE_DB_PATH=/app/data/caire.db
+ENV CAIRE_LOG_LEVEL=INFO
+RUN mkdir -p /app/data /app/logs /app/guidelines /app/models && chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8000
+
+# No --reload in production
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

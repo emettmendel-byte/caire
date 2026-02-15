@@ -1,0 +1,14 @@
+# Placeholder for future automated deployment (e.g. to a staging server or cloud).
+# Uncomment and adapt when you have a deployment target.
+#
+# name: Deploy
+# on:
+#   push:
+#     branches: [main]
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       # - Add your deployment steps (e.g. deploy to Fly.io, Railway, or your server)
+#       # - Ensure CAIRE_API_KEY and DB path are set in the target environment

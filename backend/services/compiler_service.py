@@ -7,8 +7,11 @@ with structure and condition validation, and optional async job progress.
 
 import asyncio
 import logging
+import time
 import uuid
 from typing import Any, Callable, Optional
+
+from backend.utils.logging import log_compilation_step, log_validation_result
 
 from pydantic import BaseModel, Field
 
@@ -255,16 +258,21 @@ async def compile_guideline_to_tree(
             _update_job_progress(job_id, "in_progress", progress_message=msg)
         logger.info("[compile %s] %s", job_id or guideline_id, msg)
 
+    t0 = time.perf_counter()
     progress("Retrieving guideline from database")
     doc = get_guideline_document(guideline_id)
     if not doc:
+        log_compilation_step(logger, "retrieve_guideline", guideline_id, success=False, error="not found")
         raise ValueError(f"Guideline '{guideline_id}' not found")
     guideline_text = doc.raw_text or ""
     if not guideline_text.strip():
+        log_compilation_step(logger, "retrieve_guideline", guideline_id, success=False, error="empty text")
         raise ValueError(f"Guideline '{guideline_id}' has no extracted text")
     domain = options.target_domain or doc.domain or "general"
+    log_compilation_step(logger, "retrieve_guideline", guideline_id, duration_sec=time.perf_counter() - t0)
     logger.info("Compiling guideline_id=%s domain=%s", guideline_id, domain)
 
+    t1 = time.perf_counter()
     progress("Generating initial tree structure with LLM")
     router = router or LLMRouter()
     llm_raw_output = None
@@ -273,8 +281,10 @@ async def compile_guideline_to_tree(
             guideline_text, domain=domain, router=router, use_student_fallback=True, return_raw=True
         )
         tree, llm_raw_output = result
+        log_compilation_step(logger, "llm_parse", guideline_id, duration_sec=time.perf_counter() - t1)
         logger.info("LLM returned %s chars of raw output", len(llm_raw_output) if llm_raw_output else 0)
     except Exception as e:
+        log_compilation_step(logger, "llm_parse", guideline_id, duration_sec=time.perf_counter() - t1, success=False, error=str(e))
         logger.exception("LLM parse failed: %s", e)
         if job_id:
             _update_job_progress(job_id, "failed", error_message=str(e))
@@ -300,8 +310,11 @@ async def compile_guideline_to_tree(
             var_names_in_tree.add(node.condition.variable)
 
     progress("Building tree and running validation")
+    t2 = time.perf_counter()
     structure_errors = validate_tree_structure(tree)
     condition_errors = validate_conditions(tree)
+    tree_id_str = str(tree.id) if hasattr(tree, "id") else "unknown"
+    log_validation_result(logger, tree_id_str, len(structure_errors), len(condition_errors), duration_sec=time.perf_counter() - t2)
     strict = options.strictness_level == "strict"
     if structure_errors:
         for err in structure_errors:

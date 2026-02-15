@@ -153,12 +153,35 @@ Pass counts depend on how well the LLM-generated tree matches the expected outco
 - **New fixtures**: Add or edit JSON in `tests/fixtures/` with `id`, `tree_id`, `input_values`, `expected_path`, `expected_outcome`. Keep `tree_id` and variable names consistent with the compiled tree.
 - **Run tests via API**: After ingestion, the tree is also stored in the DB. Use the frontend “Tests” panel or `POST /api/trees/{tree_id}/test` to run tests.
 
+## Production readiness (Phase 1)
+
+- **Configuration**: Copy `.env.example` to `.env` and set `CAIRE_API_KEY`, LLM keys, and log level. See [Environment management](#environment-management) below.
+- **Documentation**: [User guide](docs/user-guide.md) (upload, edit, test cases, prompts, troubleshooting). [Developer guide](docs/developer-guide.md) (architecture, extending formats, LLM, validation, testing).
+- **API docs**: OpenAPI at `/docs` and `/redoc`; auth and rate limits described there.
+- **Monitoring**: `GET /api/health` (DB + LLM config), `GET /api/metrics` (counts, LLM cost, test pass rate), `GET /api/metrics/dashboard` (simple HTML dashboard).
+- **Logging**: Structured logs to `logs/caire.log`; compilation and validation steps and optional LLM call logging (see `CAIRE_LOG_LLM_CONTENT` in `.env.example`).
+- **Security**: Phase 1 must **not** be used with real PHI. See [docs/phi-hipaa.md](docs/phi-hipaa.md). Optional API key and rate limiting; input validation on all endpoints via Pydantic.
+
+## Environment management
+
+- **Development**: No `CAIRE_API_KEY`; optional `CAIRE_LOG_LEVEL=DEBUG`; run with `--reload`.
+- **Production**: Set `CAIRE_API_KEY`, use `CAIRE_LOG_LEVEL=INFO` or `WARNING`, mount `logs/` and database on persistent volumes.
+- Copy `.env.example` to `.env` and fill in required variables (see file comments).
+
+## Backup and versioning
+
+- **Database**: `./scripts/backup_db.sh [destination_dir]` copies the SQLite DB to a timestamped file (default `./backups`).
+- **Trees as JSON**: `./scripts/export_trees.sh [output_dir]` exports all trees from the DB to JSON files (default `./models/export`) for version control.
+- **Large guideline PDFs**: Consider [Git LFS](https://git-lfs.github.com/) for storing large files in the repo instead of committing binaries.
+
 ## Tests
 
 ```bash
 pip install -e ".[dev]"
 pytest
 ```
+
+**CI**: `.github/workflows/test.yml` runs tests on push/PR; `.github/workflows/lint.yml` runs Ruff. See [Developer guide](docs/developer-guide.md#testing-strategy).
 
 ## Project layout
 

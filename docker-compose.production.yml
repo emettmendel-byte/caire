@@ -1,0 +1,26 @@
+# CAIRE production-style Compose (single host)
+# Usage: docker compose -f docker-compose.production.yml up -d
+# Set env in .env or export CAIRE_API_KEY, etc.
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend.production
+    ports:
+      - "8000:8000"
+    volumes:
+      - caire-data:/app/data
+      - caire-logs:/app/logs
+    environment:
+      - CAIRE_DB_PATH=/app/data/caire.db
+      - CAIRE_LOG_LEVEL=INFO
+      - CAIRE_API_KEY=${CAIRE_API_KEY:-}
+      - CAIRE_RATE_LIMIT_REQUESTS=${CAIRE_RATE_LIMIT_REQUESTS:-120}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    restart: unless-stopped
+
+volumes:
+  caire-data:
+  caire-logs:

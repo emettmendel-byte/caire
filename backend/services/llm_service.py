@@ -6,14 +6,14 @@ Flexible LLM integration layer with cost-efficient teacher/student routing.
 - Configuration via environment variables; providers swappable via strategy pattern.
 
 Environment variables:
-  OPENAI_API_KEY, ANTHROPIC_API_KEY     API keys (set one for the provider you use)
-  CAIRE_LLM_PROVIDER                    "openai" | "anthropic" (default: openai)
-  CAIRE_LLM_TEACHER_MODEL               e.g. gpt-4o, claude-sonnet-4-20250514
-  CAIRE_LLM_STUDENT_MODEL               e.g. gpt-4o-mini, claude-3-5-haiku-20241022
-  CAIRE_LLM_TEACHER_PROVIDER            override provider for teacher (default: CAIRE_LLM_PROVIDER)
+  OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY  API keys (set one for the provider you use)
+  CAIRE_LLM_PROVIDER                    "openai" | "anthropic" | "gemini" (default: openai)
+  CAIRE_LLM_TEACHER_MODEL               e.g. gpt-4o, claude-sonnet-4-20250514, gemini-1.5-pro
+  CAIRE_LLM_STUDENT_MODEL               e.g. gpt-4o-mini, claude-3-5-haiku, gemini-1.5-flash
+  CAIRE_LLM_TEACHER_PROVIDER            override provider for teacher
   CAIRE_LLM_STUDENT_PROVIDER            override provider for student
 
-Optional deps: pip install openai anthropic  (or use project's [llm] extra)
+Optional deps: pip install openai anthropic google-generativeai  (or pip install -e ".[llm]")
 """
 
 import asyncio
@@ -45,18 +45,28 @@ def _env(key: str, default: Optional[str] = None) -> Optional[str]:
 
 OPENAI_API_KEY = _env("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = _env("ANTHROPIC_API_KEY")
+GOOGLE_API_KEY = _env("GOOGLE_API_KEY") or _env("GEMINI_API_KEY")
 
-# Provider: "openai" or "anthropic"
+# Provider: "openai" | "anthropic" | "gemini"
 CAIRE_LLM_PROVIDER = _env("CAIRE_LLM_PROVIDER", "openai").lower()
 
-# Teacher: high-quality for parsing (e.g. gpt-4o, claude-3-5-sonnet)
-CAIRE_LLM_TEACHER_MODEL = _env("CAIRE_LLM_TEACHER_MODEL") or (
-    "gpt-4o" if CAIRE_LLM_PROVIDER == "openai" else "claude-sonnet-4-20250514"
-)
-# Student: cheaper for refinements (e.g. gpt-4o-mini, claude-3-5-haiku)
-CAIRE_LLM_STUDENT_MODEL = _env("CAIRE_LLM_STUDENT_MODEL") or (
-    "gpt-4o-mini" if CAIRE_LLM_PROVIDER == "openai" else "claude-3-5-haiku-20241022"
-)
+# Teacher / student model defaults per provider
+def _default_teacher_model() -> str:
+    if CAIRE_LLM_PROVIDER == "gemini":
+        return "gemini-1.5-pro"
+    if CAIRE_LLM_PROVIDER == "anthropic":
+        return "claude-sonnet-4-20250514"
+    return "gpt-4o"
+
+def _default_student_model() -> str:
+    if CAIRE_LLM_PROVIDER == "gemini":
+        return "gemini-1.5-flash"
+    if CAIRE_LLM_PROVIDER == "anthropic":
+        return "claude-3-5-haiku-20241022"
+    return "gpt-4o-mini"
+
+CAIRE_LLM_TEACHER_MODEL = _env("CAIRE_LLM_TEACHER_MODEL") or _default_teacher_model()
+CAIRE_LLM_STUDENT_MODEL = _env("CAIRE_LLM_STUDENT_MODEL") or _default_student_model()
 
 # Optional overrides per role (e.g. use different provider for student)
 CAIRE_LLM_TEACHER_PROVIDER = _env("CAIRE_LLM_TEACHER_PROVIDER", CAIRE_LLM_PROVIDER).lower()
@@ -73,6 +83,9 @@ COST_PER_MILLION = {
     ("openai", "gpt-4o-mini"): (0.15, 0.60),
     ("anthropic", "claude-sonnet-4-20250514"): (3.00, 15.00),
     ("anthropic", "claude-3-5-haiku-20241022"): (0.80, 4.00),
+    ("gemini", "gemini-1.5-pro"): (1.25, 5.00),
+    ("gemini", "gemini-1.5-flash"): (0.075, 0.30),
+    ("gemini", "gemini-2.0-flash-exp"): (0.10, 0.40),
 }
 
 
@@ -204,11 +217,54 @@ class AnthropicProvider:
         return content, u
 
 
+class GeminiProvider:
+    """Google Gemini API (sync client wrapped in asyncio.to_thread). Uses GOOGLE_API_KEY or GEMINI_API_KEY."""
+
+    def __init__(self, api_key: Optional[str] = None):
+        self._key = api_key or GOOGLE_API_KEY
+
+    async def call(self, prompt: str, system_prompt: str, model: str) -> tuple[str, LLMUsage]:
+        import asyncio
+        try:
+            import google.generativeai as genai
+        except ImportError:
+            raise RuntimeError("Gemini provider requires: pip install google-generativeai")
+        if not self._key:
+            raise RuntimeError("GOOGLE_API_KEY or GEMINI_API_KEY is not set")
+        genai.configure(api_key=self._key)
+        full_prompt = f"{system_prompt or ''}\n\n{prompt}".strip() if system_prompt else prompt
+        gm = genai.GenerativeModel(model)
+
+        def _generate():
+            r = gm.generate_content(
+                full_prompt,
+                generation_config={"temperature": 0.2, "max_output_tokens": 8192},
+            )
+            if not r or not getattr(r, "text", None):
+                raise RuntimeError("Empty or blocked response from Gemini")
+            text = r.text.strip()
+            usage = getattr(r, "usage_metadata", None)
+            in_tok = getattr(usage, "prompt_token_count", None) or getattr(usage, "input_token_count", None) or 0
+            out_tok = getattr(usage, "candidates_token_count", None) or getattr(usage, "output_token_count", None) or 0
+            return text, in_tok, out_tok
+
+        text, in_tok, out_tok = await asyncio.to_thread(_generate)
+        u = LLMUsage(
+            input_tokens=in_tok,
+            output_tokens=out_tok,
+            model=model,
+            provider="gemini",
+        )
+        return text, u
+
+
 def _get_provider(name: str) -> LLMProvider:
     if name == "openai":
         return OpenAIProvider()
     if name == "anthropic":
         return AnthropicProvider()
+    if name == "gemini":
+        return GeminiProvider()
     raise ValueError(f"Unknown LLM provider: {name}")
 
 
@@ -306,6 +362,17 @@ class LLMRouter:
 
         content, usage = await _retry_async(_call)
         _log_usage("teacher", usage)
+        try:
+            from backend.utils.logging import log_llm_call
+            log_llm_call(
+                logger, "teacher", self.teacher_model,
+                prompt_preview=prompt[:500] + "..." if len(prompt) > 500 else prompt,
+                response_preview=content[:500] + "..." if len(content) > 500 else content,
+                input_tokens=usage.input_tokens, output_tokens=usage.output_tokens,
+                extra={"estimated_cost_usd": usage.estimated_cost_usd},
+            )
+        except Exception:
+            pass
         logger.info(
             "Teacher call: %s %s, in=%s out=%s cost≈$%s",
             usage.provider, self.teacher_model,
@@ -323,6 +390,17 @@ class LLMRouter:
 
         content, usage = await _retry_async(_call)
         _log_usage("student", usage)
+        try:
+            from backend.utils.logging import log_llm_call
+            log_llm_call(
+                logger, "student", self.student_model,
+                prompt_preview=prompt[:500] + "..." if len(prompt) > 500 else prompt,
+                response_preview=content[:500] + "..." if len(content) > 500 else content,
+                input_tokens=usage.input_tokens, output_tokens=usage.output_tokens,
+                extra={"estimated_cost_usd": usage.estimated_cost_usd},
+            )
+        except Exception:
+            pass
         logger.info(
             "Student call: %s %s, in=%s out=%s cost≈$%s",
             usage.provider, self.student_model,

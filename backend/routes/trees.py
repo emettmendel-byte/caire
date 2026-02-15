@@ -32,6 +32,37 @@ def _is_dmn_shape(data: dict) -> bool:
     return isinstance(data.get("nodes"), dict) and "root_node_id" in data
 
 
+@router.post("/seed-sample", status_code=201)
+def seed_sample_tree(db: Session = Depends(get_db)):
+    """Load the sample decision tree from models/sample_triage_v1.json into the database so it appears in the list."""
+    sample_path = MODELS_DIR / "sample_triage_v1.json"
+    if not sample_path.exists():
+        raise HTTPException(status_code=404, detail="Sample file not found: models/sample_triage_v1.json")
+    data = json.loads(sample_path.read_text(encoding="utf-8"))
+    tree_id = data.get("id", "sample-triage")
+    row = db.query(DecisionTreeModel).filter(DecisionTreeModel.id == tree_id).first()
+    if row:
+        row.tree_json = data
+        row.version = data.get("version", row.version)
+        row.name = data.get("name", row.name)
+        row.description = data.get("description")
+        db.commit()
+        db.refresh(row)
+    else:
+        row = DecisionTreeModel(
+            id=tree_id,
+            version=data.get("version", "1.0.0"),
+            name=data.get("name", "Sample General Triage"),
+            description=data.get("description"),
+            status="draft",
+            tree_json=data,
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+    return {"id": row.id, "name": row.name, "version": row.version}
+
+
 @router.get("/", response_model=list[dict])
 def list_trees(
     db: Session = Depends(get_db),

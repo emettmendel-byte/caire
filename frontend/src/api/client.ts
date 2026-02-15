@@ -53,4 +53,9 @@ export const treesApi = {
     if (options?.tree_id) form.append('tree_id', options.tree_id)
     return fetch(`${API}/trees/generate`, { method: 'POST', body: form }).then((res) => handleResponse<DecisionTree>(res))
   },
+
+  /** Load sample tree from models/sample_triage_v1.json into the database. */
+  seedSample(): Promise<{ id: string; name: string; version: string }> {
+    return fetch(`${API}/trees/seed-sample`, { method: 'POST' }).then((res) => handleResponse(res))
+  },
 }
