@@ -67,6 +67,7 @@ echo ""
 # 3. Python dependencies
 # -----------------------------------------------------------------------------
 echo -e "${BOLD}3. Installing Python dependencies...${RESET}"
+pip uninstall -y google 2>/dev/null || true
 pip install -q -r "$ROOT/requirements.txt"
 ok "Installed (requirements.txt)"
 echo ""

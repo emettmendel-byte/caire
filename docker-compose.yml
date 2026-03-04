@@ -1,6 +1,6 @@
 # CAIRE local development (optional)
 # Run: docker compose up --build
-# Backend: http://localhost:8000  |  Frontend: http://localhost:5173
+# Backend: http://localhost:8000  |  Frontend: http://localhost:3000
 
 services:
   backend:
@@ -21,7 +21,7 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     ports:
-      - "5173:5173"
+      - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules

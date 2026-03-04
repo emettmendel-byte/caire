@@ -64,7 +64,7 @@ npm install
 npm run dev
 ```
 
-App: http://localhost:5173 (Vite proxies `/api` to the backend).
+App: http://localhost:3000 (Vite proxies `/api` to the backend).
 
 ### Optional: Docker Compose
 
@@ -75,9 +75,57 @@ docker compose up --build
 ```
 
 - Backend: http://localhost:8000  
-- Frontend: http://localhost:5173  
+- Frontend: http://localhost:3000  
 
 See `docker-compose.yml` for service definitions.
+
+### Starting the server from scratch
+
+**Option 1: One command (recommended)**
+
+From the project root:
+
+```bash
+./setup.sh
+```
+
+This checks dependencies (Python 3.10+, Node 18+), creates/activates `.venv`, installs Python and Node deps (and removes the stub `google` package so Gemini works), creates `logs/`, `models/`, `guidelines/`, copies `.env.example` → `.env` if needed, initializes the SQLite DB, optionally loads the sample tree, then starts the backend and frontend in the same terminal.
+
+- **Frontend:** http://localhost:3000  
+- **Backend:** http://localhost:8000  
+- **API docs:** http://localhost:8000/docs  
+
+Stop with **Ctrl+C**. Run `./setup.sh` again anytime; it’s idempotent.
+
+**Option 2: Manual (two terminals)**
+
+*Terminal 1 — backend:*
+```bash
+cd /path/to/caire
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip uninstall -y google 2>/dev/null || true
+pip install -r requirements.txt   # or: pip install -e ".[dev]"
+export PYTHONPATH=.
+uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+*Terminal 2 — frontend:*
+```bash
+cd /path/to/caire/frontend
+npm install
+npm run dev -- --port 3000
+```
+
+Then open http://localhost:3000 and http://localhost:8000/docs.
+
+**Fully clean start** (new venv and deps):
+
+```bash
+rm -rf .venv
+./setup.sh
+```
+
+Default LLM is **Ollama** (local). Run `ollama run deepseek-r1:latest` so the model is available, and ensure Ollama is running (e.g. the Ollama app or `ollama serve`). For the Full pipeline (PDF → LLM), no API key is needed. On Windows use `setup.bat` instead of `./setup.sh`.
 
 ## Quick test
 

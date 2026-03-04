@@ -4,8 +4,13 @@ CAIRE FastAPI application entrypoint.
 Run with: uvicorn backend.main:app --reload
 """
 
-from contextlib import asynccontextmanager
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env from project root so GOOGLE_API_KEY, CAIRE_*, etc. are available
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+from contextlib import asynccontextmanager
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import FastAPI, Request

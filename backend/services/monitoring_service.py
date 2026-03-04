@@ -36,14 +36,17 @@ def check_db() -> tuple[bool, str]:
 
 
 def check_llm_config() -> tuple[bool, str]:
-    """Check if LLM is configured (API key set). Does not call the API."""
-    if os.getenv("OPENAI_API_KEY"):
+    """Check if LLM is configured (provider + API key for cloud providers). Does not call the API."""
+    provider = (os.getenv("CAIRE_LLM_PROVIDER") or "ollama").lower()
+    if provider == "ollama":
+        return True, "ollama (local)"
+    if provider == "openai" and os.getenv("OPENAI_API_KEY"):
         return True, "openai configured"
-    if os.getenv("ANTHROPIC_API_KEY"):
+    if provider == "anthropic" and os.getenv("ANTHROPIC_API_KEY"):
         return True, "anthropic configured"
-    if os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"):
+    if provider == "gemini" and (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")):
         return True, "gemini configured"
-    return False, "no LLM API key set"
+    return False, f"provider {provider} requires corresponding API key"
 
 
 def get_health() -> dict[str, Any]:

@@ -72,6 +72,7 @@ REM ----------------------------------------------------------------------------
 REM 3. Python dependencies
 REM -----------------------------------------------------------------------------
 echo %ESC%[1m3. Installing Python dependencies...%ESC%[0m
+pip uninstall -y google 2>nul
 pip install -q -r "%ROOT%\requirements.txt"
 echo %ESC%[92m✓ Installed (requirements.txt)%ESC%[0m
 echo.

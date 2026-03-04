@@ -278,7 +278,7 @@ async def compile_guideline_to_tree(
     llm_raw_output = None
     try:
         result = await parse_guideline_to_tree(
-            guideline_text, domain=domain, router=router, use_student_fallback=True, return_raw=True
+            guideline_text, domain=domain, router=router, use_student_fallback=False, return_raw=True
         )
         tree, llm_raw_output = result
         log_compilation_step(logger, "llm_parse", guideline_id, duration_sec=time.perf_counter() - t1)

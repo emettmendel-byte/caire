@@ -54,7 +54,7 @@ This guide explains how to use CAIRE to upload guidelines, review and edit decis
 
 ### In the frontend
 
-1. Open the app (e.g. http://localhost:5173).
+1. Open the app (e.g. http://localhost:3000).
 2. Select a tree from the list.
 3. Switch to **Edit mode** (toolbar).
 4. **Drag nodes** to rearrange layout (positions are saved in tree metadata).

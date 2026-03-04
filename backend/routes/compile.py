@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.models_db import CompileJobModel
 from backend.services.compiler_service import CompilerOptions, run_compilation_job_sync
+from backend.services.ingestion_service import get_guideline_document
+from backend.services.llm_service import build_guideline_parser_prompt_preview
 
 router = APIRouter()
 
@@ -30,8 +32,6 @@ def trigger_compile(
     Start a compilation job: guideline_id -> decision tree.
     Returns job_id; use GET /api/compile/{job_id}/status for progress.
     """
-    from backend.services.ingestion_service import get_guideline_document
-
     guideline_id = body.guideline_id
     doc = get_guideline_document(guideline_id)
     if not doc:
@@ -65,6 +65,26 @@ def get_compile_status(job_id: str, db: Session = Depends(get_db)):
         "progress_message": job.progress_message,
         "result_tree_id": job.result_tree_id,
         "error_message": job.error_message,
+        "llm_raw_output": job.llm_raw_output,
+        "parsed_tree_snapshot": job.parsed_tree_snapshot,
         "created_at": job.created_at.isoformat(),
         "updated_at": job.updated_at.isoformat(),
+    }
+
+
+@router.get("/prompt-preview/{guideline_id}")
+def get_compile_prompt_preview(guideline_id: str):
+    """
+    Return system/user prompts that will be sent to the LLM for this guideline.
+    """
+    doc = get_guideline_document(guideline_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail=f"Guideline '{guideline_id}' not found")
+    domain = doc.domain or "general"
+    preview = build_guideline_parser_prompt_preview(doc.raw_text or "", domain)
+    return {
+        "guideline_id": guideline_id,
+        "domain": domain,
+        "system_prompt": preview["system_prompt"],
+        "user_prompt": preview["user_prompt"],
     }

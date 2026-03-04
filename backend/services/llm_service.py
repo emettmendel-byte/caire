@@ -1,19 +1,13 @@
 """
-Flexible LLM integration layer with cost-efficient teacher/student routing.
+LLM integration: single-model setup (default Ollama).
 
-- Teacher model: high-stakes guideline parsing (GPT-4 / Claude Opus).
-- Student model: cheaper iterative edits (GPT-4 mini / Claude Haiku).
-- Configuration via environment variables; providers swappable via strategy pattern.
+- Default provider: ollama. Run Ollama locally (e.g. ollama run deepseek-r1:latest).
+- One model is used for all calls (guideline parsing, variable extraction, refinement, tests).
 
 Environment variables:
-  OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY  API keys (set one for the provider you use)
-  CAIRE_LLM_PROVIDER                    "openai" | "anthropic" | "gemini" (default: openai)
-  CAIRE_LLM_TEACHER_MODEL               e.g. gpt-4o, claude-sonnet-4-20250514, gemini-1.5-pro
-  CAIRE_LLM_STUDENT_MODEL               e.g. gpt-4o-mini, claude-3-5-haiku, gemini-1.5-flash
-  CAIRE_LLM_TEACHER_PROVIDER            override provider for teacher
-  CAIRE_LLM_STUDENT_PROVIDER            override provider for student
-
-Optional deps: pip install openai anthropic google-generativeai  (or pip install -e ".[llm]")
+  OLLAMA_HOST                         Ollama base URL (default: http://localhost:11434)
+  CAIRE_LLM_PROVIDER                  "ollama" | "openai" | "anthropic" | "gemini" (default: ollama)
+  CAIRE_LLM_MODEL                     e.g. deepseek-r1:latest (default for Ollama)
 """
 
 import asyncio
@@ -23,6 +17,42 @@ import os
 import re
 from pathlib import Path
 from typing import Any, Optional, Protocol
+
+# region agent log
+_DEBUG_LOG_PATH = "/Users/emett/Desktop/caire/.cursor/debug.log"
+
+def _debug_log(*, runId: str, hypothesisId: str, location: str, message: str, data: dict[str, Any] | None = None) -> None:
+    """Append one NDJSON debug line. Never log secrets."""
+    try:
+        payload = {
+            "id": f"log_{int(asyncio.get_event_loop().time() * 1_000_000)}",
+            "timestamp": int(__import__("time").time() * 1000),
+            "runId": runId,
+            "hypothesisId": hypothesisId,
+            "location": location,
+            "message": message,
+            "data": data or {},
+        }
+        with open(_DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload) + "\n")
+    except Exception:
+        pass
+
+_debug_log(
+    runId="pre",
+    hypothesisId="H1",
+    location="backend/services/llm_service.py:module",
+    message="LLM module loaded; env snapshot (non-secret)",
+    data={
+        "CAIRE_LLM_PROVIDER": os.environ.get("CAIRE_LLM_PROVIDER"),
+        "CAIRE_LLM_MODEL": os.environ.get("CAIRE_LLM_MODEL"),
+        "OLLAMA_HOST": os.environ.get("OLLAMA_HOST"),
+        "GOOGLE_API_KEY_set": bool(os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")),
+        "OPENAI_API_KEY_set": bool(os.environ.get("OPENAI_API_KEY")),
+        "ANTHROPIC_API_KEY_set": bool(os.environ.get("ANTHROPIC_API_KEY")),
+    },
+)
+# endregion
 
 from backend.models.decision_tree import (
     DecisionNode,
@@ -46,31 +76,28 @@ def _env(key: str, default: Optional[str] = None) -> Optional[str]:
 OPENAI_API_KEY = _env("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = _env("ANTHROPIC_API_KEY")
 GOOGLE_API_KEY = _env("GOOGLE_API_KEY") or _env("GEMINI_API_KEY")
+OLLAMA_HOST = (_env("OLLAMA_HOST") or "http://localhost:11434").rstrip("/")
 
-# Provider: "openai" | "anthropic" | "gemini"
-CAIRE_LLM_PROVIDER = _env("CAIRE_LLM_PROVIDER", "openai").lower()
+# Provider: "ollama" | "openai" | "anthropic" | "gemini" (default: ollama)
+CAIRE_LLM_PROVIDER = _env("CAIRE_LLM_PROVIDER", "ollama").lower()
 
-# Teacher / student model defaults per provider
-def _default_teacher_model() -> str:
+# Single model (no teacher/student).
+def _default_model() -> str:
+    if CAIRE_LLM_PROVIDER == "ollama":
+        return "deepseek-r1:latest"
     if CAIRE_LLM_PROVIDER == "gemini":
-        return "gemini-1.5-pro"
+        return "gemini-2.0-flash"
     if CAIRE_LLM_PROVIDER == "anthropic":
         return "claude-sonnet-4-20250514"
     return "gpt-4o"
 
-def _default_student_model() -> str:
-    if CAIRE_LLM_PROVIDER == "gemini":
-        return "gemini-1.5-flash"
-    if CAIRE_LLM_PROVIDER == "anthropic":
-        return "claude-3-5-haiku-20241022"
-    return "gpt-4o-mini"
+CAIRE_LLM_MODEL = _env("CAIRE_LLM_MODEL") or _env("CAIRE_LLM_TEACHER_MODEL") or _default_model()
 
-CAIRE_LLM_TEACHER_MODEL = _env("CAIRE_LLM_TEACHER_MODEL") or _default_teacher_model()
-CAIRE_LLM_STUDENT_MODEL = _env("CAIRE_LLM_STUDENT_MODEL") or _default_student_model()
-
-# Optional overrides per role (e.g. use different provider for student)
-CAIRE_LLM_TEACHER_PROVIDER = _env("CAIRE_LLM_TEACHER_PROVIDER", CAIRE_LLM_PROVIDER).lower()
-CAIRE_LLM_STUDENT_PROVIDER = _env("CAIRE_LLM_STUDENT_PROVIDER", CAIRE_LLM_PROVIDER).lower()
+# Legacy teacher/student names: both use same provider and model (single-model setup)
+CAIRE_LLM_TEACHER_MODEL = CAIRE_LLM_MODEL
+CAIRE_LLM_STUDENT_MODEL = CAIRE_LLM_MODEL
+CAIRE_LLM_TEACHER_PROVIDER = CAIRE_LLM_PROVIDER
+CAIRE_LLM_STUDENT_PROVIDER = CAIRE_LLM_PROVIDER
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
@@ -85,6 +112,7 @@ COST_PER_MILLION = {
     ("anthropic", "claude-3-5-haiku-20241022"): (0.80, 4.00),
     ("gemini", "gemini-1.5-pro"): (1.25, 5.00),
     ("gemini", "gemini-1.5-flash"): (0.075, 0.30),
+    ("gemini", "gemini-2.0-flash"): (0.10, 0.40),
     ("gemini", "gemini-2.0-flash-exp"): (0.10, 0.40),
 }
 
@@ -217,6 +245,64 @@ class AnthropicProvider:
         return content, u
 
 
+class OllamaProvider:
+    """Ollama local API. No API key; uses OLLAMA_HOST (default http://localhost:11434)."""
+
+    def __init__(self, base_url: Optional[str] = None):
+        self._base = (base_url or OLLAMA_HOST).rstrip("/")
+
+    async def call(self, prompt: str, system_prompt: str, model: str) -> tuple[str, LLMUsage]:
+        import urllib.error
+        import urllib.request
+
+        url = f"{self._base}/api/generate"
+        body = {
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+        }
+        if system_prompt:
+            body["system"] = system_prompt
+        body["options"] = {"temperature": 0.2}
+        data = json.dumps(body).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        def _generate():
+            try:
+                with urllib.request.urlopen(req, timeout=600) as resp:
+                    out = json.loads(resp.read().decode("utf-8"))
+            except urllib.error.HTTPError as e:
+                body = e.read().decode("utf-8") if e.fp else ""
+                try:
+                    err = json.loads(body)
+                    msg = err.get("error", body) or str(e)
+                except Exception:
+                    msg = body or str(e)
+                raise RuntimeError(f"Ollama request failed: {msg}") from e
+            if out.get("error"):
+                raise RuntimeError(f"Ollama error: {out['error']}")
+            text = (out.get("response") or "").strip()
+            eval_count = out.get("eval_count") or 0
+            return text, eval_count
+
+        text, out_tokens = await asyncio.to_thread(_generate)
+        if not text:
+            raise RuntimeError("Empty response from Ollama")
+        u = LLMUsage(
+            input_tokens=0,
+            output_tokens=out_tokens,
+            model=model,
+            provider="ollama",
+            estimated_cost_usd=None,
+        )
+        return text, u
+
+
 class GeminiProvider:
     """Google Gemini API (sync client wrapped in asyncio.to_thread). Uses GOOGLE_API_KEY or GEMINI_API_KEY."""
 
@@ -227,8 +313,18 @@ class GeminiProvider:
         import asyncio
         try:
             import google.generativeai as genai
-        except ImportError:
-            raise RuntimeError("Gemini provider requires: pip install google-generativeai")
+        except ImportError as e:
+            msg = str(e).lower()
+            if "no module named 'google'" in msg or "no module named \"google\"" in msg:
+                raise RuntimeError(
+                    "Gemini needs the 'google.generativeai' package. The stub package 'google' on PyPI can block it. "
+                    "In the same env as uvicorn run: pip uninstall google -y && pip install google-generativeai"
+                ) from e
+            raise RuntimeError(
+                "Gemini provider requires: pip install google-generativeai. "
+                "Use the same Python/venv that runs uvicorn (e.g. activate .venv then pip install). "
+                f"Original error: {e}"
+            ) from e
         if not self._key:
             raise RuntimeError("GOOGLE_API_KEY or GEMINI_API_KEY is not set")
         genai.configure(api_key=self._key)
@@ -259,6 +355,17 @@ class GeminiProvider:
 
 
 def _get_provider(name: str) -> LLMProvider:
+    # region agent log
+    _debug_log(
+        runId="pre",
+        hypothesisId="H3",
+        location="backend/services/llm_service.py:_get_provider",
+        message="Provider requested",
+        data={"name": name},
+    )
+    # endregion
+    if name == "ollama":
+        return OllamaProvider()
     if name == "openai":
         return OpenAIProvider()
     if name == "anthropic":
@@ -342,6 +449,20 @@ class LLMRouter:
         self.student_model = student_model or CAIRE_LLM_STUDENT_MODEL
         self._teacher: Optional[LLMProvider] = None
         self._student: Optional[LLMProvider] = None
+        # region agent log
+        _debug_log(
+            runId="pre",
+            hypothesisId="H1",
+            location="backend/services/llm_service.py:LLMRouter.__init__",
+            message="LLMRouter initialized",
+            data={
+                "teacher_provider_name": self.teacher_provider_name,
+                "student_provider_name": self.student_provider_name,
+                "teacher_model": self.teacher_model,
+                "student_model": self.student_model,
+            },
+        )
+        # endregion
 
     def _get_teacher(self) -> LLMProvider:
         if self._teacher is None:
@@ -356,6 +477,19 @@ class LLMRouter:
     async def call_teacher_model(self, prompt: str, system_prompt: str) -> tuple[str, LLMUsage]:
         """High-stakes guideline parsing: use teacher model with retry and logging."""
         provider = self._get_teacher()
+        # region agent log
+        _debug_log(
+            runId="pre",
+            hypothesisId="H2",
+            location="backend/services/llm_service.py:LLMRouter.call_teacher_model",
+            message="Calling teacher model",
+            data={
+                "provider_env": self.teacher_provider_name,
+                "model": self.teacher_model,
+                "provider_class": provider.__class__.__name__,
+            },
+        )
+        # endregion
 
         async def _call():
             return await provider.call(prompt, system_prompt, self.teacher_model)
@@ -468,19 +602,11 @@ def _load_domain_prompt(domain: str, name: str) -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
-async def parse_guideline_to_tree(
-    guideline_text: str,
-    domain: str,
-    router: Optional[LLMRouter] = None,
-    use_student_fallback: bool = True,
-    return_raw: bool = False,
-):
+def build_guideline_parser_prompt_preview(guideline_text: str, domain: str) -> dict[str, str]:
     """
-    Parse guideline text into an initial DecisionTree using the teacher model.
-    Returns tree with confidence scores in each node's metadata.
-    If return_raw=True, returns (tree, raw_llm_content) for traceability.
+    Build the exact system/user prompt payload used for guideline parsing.
+    Useful for technical inspection in the UI.
     """
-    router = router or LLMRouter()
     system_prompt = _load_prompt("guideline_parser_system.txt")
     example = _load_prompt("tree_structure.json")
     domain_system = _load_domain_prompt(domain, "system.txt")
@@ -495,22 +621,27 @@ async def parse_guideline_to_tree(
     user_prompt = f"Domain: {domain}\n\nGuideline text:\n\n{guideline_text[:12000]}"
     if len(guideline_text) > 12000:
         user_prompt += "\n\n[... text truncated ...]"
+    return {"system_prompt": system_prompt, "user_prompt": user_prompt}
 
-    content = None
-    usage = None
 
-    try:
-        content, usage = await router.call_teacher_model(user_prompt, system_prompt)
-    except Exception as e:
-        if use_student_fallback:
-            logger.warning("Teacher model failed, falling back to student: %s", e)
-            try:
-                content, usage = await router.call_student_model(user_prompt, system_prompt)
-            except Exception as e2:
-                raise RuntimeError(f"Both teacher and student model failed. Last error: {e2}") from e2
-        else:
-            raise
+async def parse_guideline_to_tree(
+    guideline_text: str,
+    domain: str,
+    router: Optional[LLMRouter] = None,
+    use_student_fallback: bool = False,
+    return_raw: bool = False,
+):
+    """
+    Parse guideline text into an initial DecisionTree using the configured LLM (single model).
+    Returns tree with confidence scores in each node's metadata.
+    If return_raw=True, returns (tree, raw_llm_content) for traceability.
+    """
+    router = router or LLMRouter()
+    prompt_preview = build_guideline_parser_prompt_preview(guideline_text, domain)
+    system_prompt = prompt_preview["system_prompt"]
+    user_prompt = prompt_preview["user_prompt"]
 
+    content, usage = await router.call_teacher_model(user_prompt, system_prompt)
     raw = _extract_json_from_response(content)
 
     # Ensure nodes is dict (schema expects node_id -> node)

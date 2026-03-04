@@ -1,5 +1,6 @@
 .app {
-  min-height: 100vh;
+  min-height: 180vh;
+  height: auto;
   display: flex;
   flex-direction: column;
 }
@@ -8,6 +9,13 @@
   padding: 1rem 1.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.2);
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .app-header h1 {
@@ -27,8 +35,276 @@
   min-height: 0;
 }
 
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.sub-tabs {
+  margin-bottom: 0.75rem;
+}
+
+.tab {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.section.split {
+  display: flex;
+  min-height: 0;
+  width: 100%;
+}
+
+.split-pane {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+}
+
+.split-pane-left,
+.split-pane-right {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.split-pane-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.split-pane-right {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.split-pane-divider {
+  width: 10px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  position: relative;
+  background: transparent;
+}
+
+.split-pane-divider::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  width: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.split-pane-divider:hover::before,
+.split-pane-divider.dragging::before {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.content-pad {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.section-header {
+  padding: 1.5rem 1.5rem 0.75rem 1.5rem;
+}
+
+.section-header h2 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.25rem;
+}
+
+.section-header p {
+  margin: 0;
+  opacity: 0.85;
+  font-size: 0.95rem;
+}
+
+.card {
+  margin: 0 1.5rem 1rem 1.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.card h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.status {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.library {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.library-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.library-item.selected {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.library-button {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.create-grid {
+  display: flex;
+  padding: 0 1.5rem 1rem 1.5rem;
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
+}
+
+.create-grid .card {
+  margin: 0;
+}
+
+.create-grid .split-pane-left > .card,
+.create-grid .split-pane-right > .card {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.create-grid .split-pane-left,
+.create-grid .split-pane-right {
+  overflow-y: auto;
+}
+
+.create-grid .library {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.pdf-viewer {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.pdf-frame {
+  width: 100%;
+  height: max(140vh, 1400px);
+  flex: 1;
+  min-height: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.library-title {
+  font-weight: 600;
+}
+
+.library-meta {
+  font-size: 0.8rem;
+  opacity: 0.75;
+  margin-top: 0.15rem;
+}
+
+.test-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.json {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.25);
+  color: inherit;
+  padding: 0.6rem 0.75rem;
+}
+
+.technical-compile {
+  overflow-y: auto;
+}
+
+.technical-label {
+  display: block;
+  margin: 0.5rem 0 0.25rem 0;
+  font-size: 0.82rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.technical-block {
+  margin-bottom: 0.5rem;
+}
+
+.result {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
 .sidebar {
-  width: 280px;
+  width: 100%;
   flex-shrink: 0;
   padding: 1rem;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
@@ -50,9 +326,46 @@
   overflow: hidden;
 }
 
+.split-pane-right > .content {
+  flex: 1;
+  min-height: 0;
+}
+
 .content:has(.hint) {
   padding: 1.5rem;
   overflow-y: auto;
+}
+
+.tree-list-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tree-list-actions {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.tree-list-actions-label {
+  margin: 0 0 0.35rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.tree-list-actions .empty-actions {
+  margin-bottom: 0;
+}
+
+.tree-list-actions .btn-sm {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.tree-list-error {
+  margin: 0.35rem 0 0 0;
+  font-size: 0.8rem;
 }
 
 .tree-list {
@@ -125,6 +438,13 @@
 .empty-actions .btn-secondary:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.empty-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0.25rem 0;
+  opacity: 0.95;
 }
 
 .empty-hint {

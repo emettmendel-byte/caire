@@ -8,6 +8,7 @@ WORKDIR /app
 
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip uninstall -y google 2>/dev/null || true && \
     pip install --no-cache-dir -e . && \
     pip install --no-cache-dir "uvicorn[standard]>=0.27.0"
 
